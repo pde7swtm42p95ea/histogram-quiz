@@ -26,7 +26,7 @@
     margin: 10px auto; /* マージンも少し縮小 */
     width: 95%;
     max-width: 600px;
-    height: 250px; /* ★ 修正点: 高さ縮小 ★ */
+    height: 250px; 
   }
   
   /* --- 選択肢 (CSS Grid) --- */
@@ -67,7 +67,7 @@
   /* 選択肢のグラフの高さ修正 */
   .option-plot {
     width: 100%;
-    height: 100px; /* ★ 修正点: 高さ大幅縮小 ★ */
+    height: 100px; 
   }
 
   /* --- 状態変化のスタイル --- */
@@ -100,8 +100,8 @@
     display: flex;
     justify-content: center; /* 中央寄せ */
     gap: 15px; /* ボタン間のスペース */
-    margin-top: 10px; /* マージンを少し縮小 */
-    margin-bottom: 10px; /* マージンを少し縮小 */
+    margin-top: 10px; 
+    margin-bottom: 10px; 
   }
   
   button {
@@ -379,7 +379,7 @@ function drawQuestion() {
   updateLifeDisplay();
 }
 
-// 「答え合わせ」ボタンが押された時の処理 (変更なし)
+// 「答え合わせ」ボタンが押された時の処理
 function showAnswer() {
   if (gameOver || waitingNext) return;
 
@@ -416,7 +416,8 @@ function showAnswer() {
     msg.innerHTML = "❌ 間違い！もう一度、ヒストグラムと箱ひげ図の対応を確認してみましょう。";
     msg.style.color = "red";
     // 正解の選択肢に枠線を表示
-    document.getElementById(`opt${userAnswer}`).closest('.option-label').classList.add("wrong");
+    // ★ 修正点: userAnswer -> userChoice に変更 ★
+    document.getElementById(`opt${userChoice}`).closest('.option-label').classList.add("wrong");
     document.getElementById(`opt${currentAnswer}`).closest('.option-label').classList.add("correct");
   }
 
@@ -435,6 +436,7 @@ function showAnswer() {
   }
 
   // 4. 次のボタン類を表示
+  // ★ 修正点: 間違えてもゲームオーバーでなければ表示される ★
   document.getElementById("nextButton").style.display = "inline-block";
 }
 
