@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📊 ヒストグラム → 箱ひげ図クイズ (最終修正版)</title>
+<title>📊 ヒストグラム → 箱ひげ図クイズ (一画面収容版)</title>
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <style>
   body {
@@ -21,28 +21,26 @@
     display: block; 
   }
 
-  /* --- メインの問題グラフ --- */
+  /* --- メインの問題グラフ (高さ修正) --- */
   #mainChart {
-    margin: 20px auto;
+    margin: 10px auto; /* マージンも少し縮小 */
     width: 95%;
     max-width: 600px;
-    height: 300px;
+    height: 250px; /* ★ 修正点: 高さ縮小 ★ */
   }
   
   /* --- 選択肢 (CSS Grid) --- */
   #options {
     display: grid;
-    /* ★ 2列表示に固定する修正 ★ */
     grid-template-columns: repeat(2, 1fr); 
     gap: 10px;
     width: 95%;
     max-width: 650px; 
     margin: 10px auto;
   }
-  /* スマホ縦画面などの極端に狭い画面では1列に戻す (必要に応じて) */
   @media (max-width: 600px) {
     #options {
-        grid-template-columns: repeat(2, 1fr); /* 600pxまでは2列を維持 */
+        grid-template-columns: repeat(2, 1fr); 
         max-width: 95%;
     }
   }
@@ -66,9 +64,10 @@
     font-weight: bold;
     color: #007BFF;
   }
+  /* 選択肢のグラフの高さ修正 */
   .option-plot {
     width: 100%;
-    height: 180px; 
+    height: 100px; /* ★ 修正点: 高さ大幅縮小 ★ */
   }
 
   /* --- 状態変化のスタイル --- */
@@ -101,8 +100,8 @@
     display: flex;
     justify-content: center; /* 中央寄せ */
     gap: 15px; /* ボタン間のスペース */
-    margin-top: 30px;
-    margin-bottom: 20px;
+    margin-top: 10px; /* マージンを少し縮小 */
+    margin-bottom: 10px; /* マージンを少し縮小 */
   }
   
   button {
@@ -417,7 +416,7 @@ function showAnswer() {
     msg.innerHTML = "❌ 間違い！もう一度、ヒストグラムと箱ひげ図の対応を確認してみましょう。";
     msg.style.color = "red";
     // 正解の選択肢に枠線を表示
-    document.getElementById(`opt${userChoice}`).closest('.option-label').classList.add("wrong");
+    document.getElementById(`opt${userAnswer}`).closest('.option-label').classList.add("wrong");
     document.getElementById(`opt${currentAnswer}`).closest('.option-label').classList.add("correct");
   }
 
