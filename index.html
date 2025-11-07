@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>📊 面積比対応 4択クイズ（横幅統一）</title>
+<title>📊 箱ひげ図 4択クイズ</title>
 <script src="https://cdn.plot.ly/plotly-latest.min.js" defer></script>
 <style>
   body{font-family:"Segoe UI",sans-serif;margin:0;padding:0;background:#f8f9fa;text-align:center}
@@ -55,7 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const baseDist = ["正規分布","右に歪んだ分布","左に歪んだ分布"];
   const optionalDist = ["一様分布","二峰性分布"];
-  const X_RANGE = [-10, 10]; // ✅ 横幅を統一
 
   let distTypes = [];
   let totalQuestions=0,correctAnswers=0,currentAnswer=0;
@@ -127,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const q3=mid+(base.q3-mid)*scaleFactor;
     const min=mid+(base.min-mid)*scaleFactor;
     const max=mid+(base.max-mid)*scaleFactor;
+
     return {min,q1,med:mid,q3,max};
   }
 
@@ -146,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
         arr.push(v);
       }
     }
+    while(arr.length<n)arr.push(stats.med+(Math.random()-0.5)*0.5);
     return arr;
   }
 
@@ -160,12 +161,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById("nextButton").style.display="none";
     document.getElementById("checkButton").style.display="inline-block";
 
-    const lastDist = ["一様分布","二峰性分布"][Math.floor(Math.random()*2)];
-    distTypes = ["正規分布","右に歪んだ分布","左に歪んだ分布", lastDist];
+    // ✅ 出題分布（4択）
+    const lastDist = optionalDist[Math.floor(Math.random()*optionalDist.length)];
+    distTypes = [...baseDist, lastDist];
 
     correctType = distTypes[Math.floor(Math.random()*distTypes.length)];
     currentAnswer = distTypes.indexOf(correctType);
 
+    // ✅ ヒストグラム
     const mainData=generateHistogramData(correctType);
     Plotly.react("mainChart", [{
       x: mainData,
@@ -173,10 +176,9 @@ document.addEventListener('DOMContentLoaded', () => {
       xbins: {size: 1},
       marker: {color: "lightgray", line: {color: "gray", width: 1}},
       opacity: 1
-    }],
-    {margin:{t:30,l:10,r:10,b:10},xaxis:{range:X_RANGE,visible:false},yaxis:{visible:false}},
-    {staticPlot:true});
+    }], {margin:{t:30,l:10,r:10,b:10},xaxis:{visible:false},yaxis:{visible:false}}, {staticPlot:true});
 
+    // ✅ 選択肢
     const options=document.getElementById("options");
     options.innerHTML="";
     distTypes.forEach((type,i)=>{
@@ -189,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       Plotly.newPlot(`box${i}`,[{x:arr,type:"box",boxpoints:false,orientation:"h",
         marker:{color:"rgba(80,80,80,0.6)"}}],
-        {margin:{t:5,b:5,l:5,r:5},xaxis:{range:X_RANGE,visible:false},yaxis:{visible:false}},
+        {margin:{t:5,b:5,l:5,r:5},yaxis:{visible:false},xaxis:{visible:false}},
         {staticPlot:true});
 
       div.addEventListener("click",()=>{
@@ -202,21 +204,18 @@ document.addEventListener('DOMContentLoaded', () => {
     updateLifeDisplay();
   }
 
+  // ✅ 判定などは前と同じ
   document.getElementById("checkButton").addEventListener("click",()=>{
     if(waitingNext)return;
     const sel=document.getElementById("options").dataset.selected;
     if(sel===undefined){alert("選択肢を選んでください！");return;}
     waitingNext=true;totalQuestions++;
-    const ans=parseInt(sel);
-    const msg=document.getElementById("message");
+    const ans=parseInt(sel),msg=document.getElementById("message");
     if(ans===currentAnswer){
-      correctAnswers++;
-      msg.innerText="🎯 正解！";
-      msg.style.color="green";
+      correctAnswers++;msg.innerText="🎯 正解！";msg.style.color="green";
       document.querySelectorAll(".option-box")[ans].classList.add("correct");
     }else{
-      lives--;
-      msg.innerText="❌ 不正解";
+      lives--;msg.innerText=`❌ 間違い！　正解は「${correctType}」`;
       msg.style.color="red";
       document.querySelectorAll(".option-box")[ans].classList.add("wrong");
       document.querySelectorAll(".option-box")[currentAnswer].classList.add("correct");
@@ -227,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById("nextButton").style.display="inline-block";
     if(lives<=0){
       const rate=((correctAnswers/totalQuestions)*100).toFixed(1);
-      msg.innerText="💀 ゲームオーバー";
+      msg.innerText+=" 💀 ゲームオーバー！";
       document.getElementById("nextButton").style.display="none";
       document.getElementById("restartButton").style.display="inline-block";
       const fs=document.getElementById("finalScore");
