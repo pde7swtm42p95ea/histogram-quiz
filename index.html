@@ -32,11 +32,19 @@
   /* --- 選択肢 (CSS Grid) --- */
   #options {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    /* ★ 2列表示に固定する修正 ★ */
+    grid-template-columns: repeat(2, 1fr); 
     gap: 10px;
     width: 95%;
     max-width: 650px; 
     margin: 10px auto;
+  }
+  /* スマホ縦画面などの極端に狭い画面では1列に戻す (必要に応じて) */
+  @media (max-width: 600px) {
+    #options {
+        grid-template-columns: repeat(2, 1fr); /* 600pxまでは2列を維持 */
+        max-width: 95%;
+    }
   }
 
   /* ラジオボタンとグラフをまとめたラベル全体 */
