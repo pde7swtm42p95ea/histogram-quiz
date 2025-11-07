@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>📊 面積比対応 4択クイズ（横幅統一）</title>
+<script src="https://cdn.plot.ly/plotly-latest.min.js" defer></script>
+<style>
+  body{font-family:"Segoe UI",sans-serif;margin:0;padding:0;background:#f8f9fa;text-align:center}
+  h1{font-size:1.1rem;margin:8px 0}
+  #modeSelection,#gameContainer{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh}
+  #mainChart{width:95%;max-width:420px;height:200px;margin:4px auto}
+  #options{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;width:95%;max-width:420px;margin-top:4px}
+  .option-box{border:2px solid #ccc;border-radius:6px;background:#fff;padding:4px;transition:0.15s}
+  .option-box:hover{border-color:#007BFF;transform:scale(1.02)}
+  .option-plot{width:100%;height:70px}
+  .correct{border-color:#00c853 !important;background:#eaffea}
+  .wrong{border-color:#ff1744 !important;background:#ffeaea}
+  button{font-size:1rem;padding:8px 16px;margin-top:6px;border:none;border-radius:5px;color:#fff;cursor:pointer}
+  #startButton{background:#007BFF}#startButton:hover{background:#0056b3}
+  #checkButton{background:#28a745}#checkButton:hover{background:#218838}
+  #nextButton{background:#007BFF;display:none}
+  #restartButton{background:#6c757d;display:none}
+  #life{font-size:1.1rem;color:red;margin:6px}
+  #message{font-size:1rem;min-height:1.5em}
+  #scoreboard,#finalScore{font-size:1rem;color:#333;margin:4px}
+  @media(max-width:480px){button{width:90%;font-size:0.9rem}.option-plot{height:65px}#mainChart{height:180px}}
+</style>
+</head>
+<body>
+
+<div id="modeSelection">
+  <h1>📊 ヒストグラム → 箱ひげ図 4択クイズ</h1>
+  <p>分布の形を見て対応する箱ひげ図を選ぼう！</p>
+  <button id="startButton">ゲーム開始 ▶️</button>
+</div>
+
+<div id="gameContainer" style="display:none;">
+  <h1>📊 クイズ</h1>
+  <div id="life"></div>
+  <div id="mainChart"></div>
+  <div id="options"></div>
+
+  <button id="checkButton">✅ 答え合わせ</button>
+  <div id="message"></div>
+  <div id="scoreboard"></div>
+  <div id="finalScore" style="display:none;font-weight:bold"></div>
+
+  <button id="nextButton">🔁 次の問題へ</button>
+  <button id="restartButton">🔄 始めから</button>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  const baseDist = ["正規分布","右に歪んだ分布","左に歪んだ分布"];
+  const optionalDist = ["一様分布","二峰性分布"];
+  const X_RANGE = [-10, 10]; // ✅ 横幅を統一
+
+  let distTypes = [];
+  let totalQuestions=0,correctAnswers=0,currentAnswer=0;
+  let lives=3,correctType="",waitingNext=false;
+
+  function randn(mean=0,std=1){
+    let u=1-Math.random(),v=1-Math.random();
+    return mean+std*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+  }
+
+  const histPatterns={
+    "正規分布":[{mean:0,std:1}],
+    "右に歪んだ分布":[{scale:2,bias:3}],
+    "左に歪んだ分布":[{scale:2,bias:-3}],
+    "二峰性分布":[{offset:3.5}],
+    "一様分布":[{range:10}]
+  };
+
+  function generateHistogramData(type){
+    const n=200;
+    let scaleFactor=1;
+    switch(type){
+      case "正規分布": scaleFactor=1.0; break;
+      case "右に歪んだ分布": scaleFactor=0.7; break;
+      case "左に歪んだ分布": scaleFactor=0.7; break;
+      case "二峰性分布": scaleFactor=1.3; break;
+      case "一様分布": scaleFactor=1.0; break;
+    }
+
+    if(type==="一様分布" || Math.random()<0.2){
+      const range=10*scaleFactor;
+      return Array.from({length:n},()=> (Math.random()-0.5)*range);
+    }
+
+    const p=histPatterns[type][0];
+    if(type==="正規分布")
+      return Array.from({length:n},()=>randn(p.mean,p.std*scaleFactor));
+    if(type==="右に歪んだ分布")
+      return Array.from({length:n},()=>Math.pow(Math.abs(randn(0,1)),1.8)*p.scale*scaleFactor+p.bias);
+    if(type==="左に歪んだ分布")
+      return Array.from({length:n},()=>-Math.pow(Math.abs(randn(0,1)),1.8)*p.scale*scaleFactor+p.bias);
+    if(type==="二峰性分布"){
+      const a=Array.from({length:n/2},()=>randn(-p.offset,0.7*scaleFactor));
+      const b=Array.from({length:n/2},()=>randn(p.offset,0.7*scaleFactor));
+      return a.concat(b);
+    }
+  }
+
+  function generateBoxStats(type){
+    let scaleFactor=1;
+    switch(type){
+      case "正規分布": scaleFactor=1.0; break;
+      case "右に歪んだ分布": scaleFactor=0.7; break;
+      case "左に歪んだ分布": scaleFactor=0.7; break;
+      case "二峰性分布": scaleFactor=1.3; break;
+      case "一様分布": scaleFactor=1.0; break;
+    }
+
+    const base={
+      "正規分布":{min:-3,q1:-1,med:0,q3:1,max:3},
+      "右に歪んだ分布":{min:-1,q1:0.5,med:1.5,q3:3,max:8},
+      "左に歪んだ分布":{min:-8,q1:-3,med:-1.5,q3:-0.5,max:1},
+      "二峰性分布":{min:-8,q1:-4,med:0,q3:4,max:8},
+      "一様分布":{min:-5,q1:-2.5,med:0,q3:2.5,max:5}
+    }[type];
+
+    const mid=base.med;
+    const q1=mid+(base.q1-mid)*scaleFactor;
+    const q3=mid+(base.q3-mid)*scaleFactor;
+    const min=mid+(base.min-mid)*scaleFactor;
+    const max=mid+(base.max-mid)*scaleFactor;
+    return {min,q1,med:mid,q3,max};
+  }
+
+  function synthesizeArray(stats,n=200){
+    const segs=[
+      {f:stats.min,t:stats.q1,r:0.25},
+      {f:stats.q1,t:stats.med,r:0.25},
+      {f:stats.med,t:stats.q3,r:0.25},
+      {f:stats.q3,t:stats.max,r:0.25}
+    ];
+    const arr=[];
+    for(const seg of segs){
+      const cnt=Math.max(1,Math.floor(n*seg.r));
+      for(let i=0;i<cnt;i++){
+        const u=Math.random();
+        const v=seg.f+u*(seg.t-seg.f)+(Math.random()-0.5)*((seg.t-seg.f)*0.1);
+        arr.push(v);
+      }
+    }
+    return arr;
+  }
+
+  function updateLifeDisplay(){
+    document.getElementById("life").innerHTML="❤️".repeat(lives)+"🤍".repeat(3-lives);
+  }
+
+  function drawQuestion(){
+    waitingNext=false;
+    document.getElementById("message").innerText="";
+    document.getElementById("finalScore").style.display="none";
+    document.getElementById("nextButton").style.display="none";
+    document.getElementById("checkButton").style.display="inline-block";
+
+    const lastDist = ["一様分布","二峰性分布"][Math.floor(Math.random()*2)];
+    distTypes = ["正規分布","右に歪んだ分布","左に歪んだ分布", lastDist];
+
+    correctType = distTypes[Math.floor(Math.random()*distTypes.length)];
+    currentAnswer = distTypes.indexOf(correctType);
+
+    const mainData=generateHistogramData(correctType);
+    Plotly.react("mainChart", [{
+      x: mainData,
+      type: "histogram",
+      xbins: {size: 1},
+      marker: {color: "lightgray", line: {color: "gray", width: 1}},
+      opacity: 1
+    }],
+    {margin:{t:30,l:10,r:10,b:10},xaxis:{range:X_RANGE,visible:false},yaxis:{visible:false}},
+    {staticPlot:true});
+
+    const options=document.getElementById("options");
+    options.innerHTML="";
+    distTypes.forEach((type,i)=>{
+      const stats=generateBoxStats(type);
+      const arr=synthesizeArray(stats,200);
+      const div=document.createElement("div");
+      div.className="option-box";div.dataset.index=i;
+      div.innerHTML=`<div id="box${i}" class="option-plot"></div>`;
+      options.appendChild(div);
+
+      Plotly.newPlot(`box${i}`,[{x:arr,type:"box",boxpoints:false,orientation:"h",
+        marker:{color:"rgba(80,80,80,0.6)"}}],
+        {margin:{t:5,b:5,l:5,r:5},xaxis:{range:X_RANGE,visible:false},yaxis:{visible:false}},
+        {staticPlot:true});
+
+      div.addEventListener("click",()=>{
+        document.querySelectorAll(".option-box").forEach(b=>b.style.outline="");
+        div.style.outline="2px solid #007BFF";
+        options.dataset.selected=i;
+      });
+    });
+
+    updateLifeDisplay();
+  }
+
+  document.getElementById("checkButton").addEventListener("click",()=>{
+    if(waitingNext)return;
+    const sel=document.getElementById("options").dataset.selected;
+    if(sel===undefined){alert("選択肢を選んでください！");return;}
+    waitingNext=true;totalQuestions++;
+    const ans=parseInt(sel);
+    const msg=document.getElementById("message");
+    if(ans===currentAnswer){
+      correctAnswers++;
+      msg.innerText="🎯 正解！";
+      msg.style.color="green";
+      document.querySelectorAll(".option-box")[ans].classList.add("correct");
+    }else{
+      lives--;
+      msg.innerText="❌ 不正解";
+      msg.style.color="red";
+      document.querySelectorAll(".option-box")[ans].classList.add("wrong");
+      document.querySelectorAll(".option-box")[currentAnswer].classList.add("correct");
+    }
+    updateLifeDisplay();
+    document.getElementById("scoreboard").innerText=`合計正解：${correctAnswers}問`;
+    document.getElementById("checkButton").style.display="none";
+    document.getElementById("nextButton").style.display="inline-block";
+    if(lives<=0){
+      const rate=((correctAnswers/totalQuestions)*100).toFixed(1);
+      msg.innerText="💀 ゲームオーバー";
+      document.getElementById("nextButton").style.display="none";
+      document.getElementById("restartButton").style.display="inline-block";
+      const fs=document.getElementById("finalScore");
+      fs.style.display="block";
+      fs.innerHTML=`🏁 最終スコア<br>正解数：${correctAnswers}問 / ${totalQuestions}問<br>正答率：${rate}%`;
+    }
+  });
+
+  document.getElementById("nextButton").addEventListener("click",()=>drawQuestion());
+  document.getElementById("startButton").addEventListener("click",()=>{
+    document.getElementById("modeSelection").style.display="none";
+    document.getElementById("gameContainer").style.display="flex";
+    totalQuestions=0;correctAnswers=0;lives=3;
+    drawQuestion();
+  });
+  document.getElementById("restartButton").addEventListener("click",()=>{
+    document.getElementById("gameContainer").style.display="none";
+    document.getElementById("modeSelection").style.display="flex";
+  });
+});
+</script>
+</body>
+</html>
