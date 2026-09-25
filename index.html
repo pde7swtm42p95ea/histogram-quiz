@@ -2,10 +2,16 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📊 ヒストグラム → 箱ひげ図クイズ (一画面収容版)</title>
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>📊 ヒストグラム → 箱ひげ図クイズ</title>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js" onerror="window.__plotlyFailed = true;"></script>
 <style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
   body {
     font-family: "Segoe UI", sans-serif;
     text-align: center;
@@ -13,152 +19,187 @@
     background-color: #f8f9fa;
     transition: background-color 0.6s ease;
   }
-  h1 { font-size: 1.6em; margin-bottom: 10px; }
+  h1 { font-size: 1.6em; margin-bottom: 6px; }
   p { font-size: 0.95em; color: #333; }
-  
-  /* --- ゲームコンテナ --- */
-  #gameContainer {
-    display: block; 
+
+  #progress {
+    font-size: 0.95em;
+    font-weight: bold;
+    color: #555;
+    margin-top: 4px;
   }
 
-  /* --- メインの問題グラフ (高さ修正) --- */
+  #gameContainer { display: none; }
+
+  #startScreen {
+    max-width: 600px;
+    margin: 30px auto;
+    padding: 20px 24px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    text-align: left;
+  }
+  #startScreen h1 { text-align: center; }
+  #startScreen h2 {
+    font-size: 1.05em;
+    margin: 18px 0 8px;
+    color: #007BFF;
+  }
+  #startScreen ul { margin: 0; padding-left: 1.3em; }
+  #startScreen li { margin-bottom: 6px; line-height: 1.5; }
+  #startButton {
+    display: block;
+    width: 100%;
+    max-width: 260px;
+    margin: 22px auto 4px;
+    background-color: #00c853;
+    font-size: 1.1em;
+    padding: 12px 20px;
+  }
+
   #mainChart {
-    margin: 10px auto; /* マージンも少し縮小 */
+    margin: 10px auto;
     width: 95%;
     max-width: 600px;
-    height: 250px; 
+    height: 250px;
   }
-  
-  /* --- 選択肢 (CSS Grid) --- */
+
   #options {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); 
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     width: 95%;
-    max-width: 650px; 
+    max-width: 650px;
     margin: 10px auto;
   }
-  @media (max-width: 600px) {
+  @media (max-width: 480px) {
     #options {
-        grid-template-columns: repeat(2, 1fr); 
-        max-width: 95%;
+      grid-template-columns: 1fr;
+      max-width: 95%;
     }
   }
 
-  /* ラジオボタンとグラフをまとめたラベル全体 */
   .option-label {
-    display: block; 
+    display: block;
     border: 3px solid #ccc;
     padding: 8px;
     border-radius: 10px;
     transition: 0.25s;
     background-color: white;
-    cursor: pointer; 
+    cursor: pointer;
   }
   .option-label:hover { border-color: #007BFF; transform: scale(1.02); }
-  
-  /* ラジオボタンのスタイル */
+  .option-label:has(input:checked) {
+    border-color: orange;
+    box-shadow: 0 0 5px rgba(255, 165, 0, 0.5);
+  }
+
   .radio-container {
     text-align: left;
     margin-bottom: 5px;
     font-weight: bold;
     color: #007BFF;
   }
-  /* 選択肢のグラフの高さ修正 */
-  .option-plot {
-    width: 100%;
-    height: 100px; 
-  }
+  .option-plot { width: 100%; height: 100px; }
 
-  /* --- 状態変化のスタイル --- */
   .correct { border-color: #00c853 !important; background-color: #eaffea; }
   .wrong { border-color: #ff1744 !important; background-color: #ffeaea; }
-  .disabled { pointer-events: none; opacity: 1; } 
-  
-  /* 選択されているラジオボタンに合わせた枠線 */
-  input[type="radio"]:checked + .option-box {
-      border-color: orange;
-      box-shadow: 0 0 5px rgba(255, 165, 0, 0.5);
-  }
+  .disabled { pointer-events: none; opacity: 0.6; }
 
-  /* --- メッセージ・スコア --- */
   #message { font-size: 1.2em; margin-top: 10px; min-height: 1.5em; }
   #scoreboard { margin-top: 10px; font-size: 1em; color: #333; }
   #life { font-size: 1.4em; color: red; margin-top: 5px; }
 
-  /* --- ボタン --- */
   #gameover {
     display: none;
-    margin-top: 30px;
+    margin-top: 20px;
     font-size: 1.2em;
-    color: red;
     font-weight: bold;
   }
-  
-  /* ボタンコンテナ: 答え合わせと次の問題を横並びに配置 */
+  #gameover.lose { color: #d32f2f; }
+  #gameover.clear { color: #1b8a2f; }
+
   #buttonContainer {
     display: flex;
-    justify-content: center; /* 中央寄せ */
-    gap: 15px; /* ボタン間のスペース */
-    margin-top: 10px; 
-    margin-bottom: 10px; 
+    justify-content: center;
+    gap: 15px;
+    margin-top: 10px;
+    margin-bottom: 10px;
   }
-  
+
   button {
     font-size: 1em;
     padding: 10px 20px;
-    margin-top: 0; 
     cursor: pointer;
     border: none;
     border-radius: 6px;
-    flex-grow: 1; 
+    flex-grow: 1;
     max-width: 250px;
+    color: white;
   }
-  button:hover { background-color: #0056b3; }
+  button:hover { opacity: 0.9; }
 
-  /* 答え合わせボタン */
-  #checkButton {
-      background-color: #ff8c00; 
+  #checkButton { background-color: #ff8c00; }
+  #nextButton { background-color: #007BFF; }
+  #restartButton { background-color: #6c757d; margin-top: 10px; }
+
+  #cdnError {
+    display: none;
+    color: #d32f2f;
+    font-weight: bold;
+    margin-top: 30px;
   }
-  #checkButton:hover {
-      background-color: #cc7000;
-  }
-  
-  /* 次の問題へボタン */
-  #nextButton {
-      background-color: #007BFF;
-  }
-  
 </style>
 </head>
-<body onload="startGame()">
+<body>
+
+<div id="startScreen">
+  <h1>📊 ヒストグラム → 箱ひげ図クイズ</h1>
+  <p>統計の基本、「ヒストグラム」と「箱ひげ図」の対応関係を身につけるクイズです。</p>
+
+  <h2>🎯 遊び方</h2>
+  <ul>
+    <li>画面上部に表示される<strong>ヒストグラム</strong>を見て、それと同じデータから作られた<strong>箱ひげ図</strong>を4択の中から選びます。</li>
+    <li>選択肢を1つ選んで「✅ 答え合わせ」を押すと正誤がわかります。</li>
+  </ul>
+
+  <h2>❤️ ライフとレベル</h2>
+  <ul>
+    <li>ライフは3つ。<strong>3回間違えるとゲームオーバー</strong>です。</li>
+    <li>5問正解・不正解にかかわらず5問進むごとに<strong>難易度がレベルアップ</strong>し、分布の見分けが少しずつ難しくなります（背景色でも難易度がわかります）。</li>
+  </ul>
+
+  <h2>🏁 ゴール</h2>
+  <ul>
+    <li>全<strong>30問</strong>に挑戦できます。ライフが残ったまま30問に到達すると、そこで終了して最終スコアが表示されます。</li>
+  </ul>
+
+  <button id="startButton" onclick="beginGame()">▶️ スタート</button>
+</div>
 
 <div id="gameContainer">
-  <h1 id="gameTitle">📊 ヒストグラム → 箱ひげ図クイズ</h1>
-  <p id="gameInstructions">ヒストグラムを見て、対応する箱ひげ図を選ぼう！<br>
-  3回間違えるとゲームオーバー！5問ごとにレベルアップ🔥</p>
+  <h1>📊 ヒストグラム → 箱ひげ図クイズ</h1>
+  <p>ヒストグラムを見て、対応する箱ひげ図を選ぼう！<br>
+  3回間違えるとゲームオーバー。全30問終了で最終スコア発表！5問ごとにレベルアップ🔥</p>
+  <div id="progress"></div>
 
   <div id="life"></div>
-
   <div id="mainChart"></div>
 
-  
   <div id="options">
     <label class="option-label" for="radio0">
       <div class="radio-container"><input type="radio" id="radio0" name="answer" value="0"> 選択肢 1</div>
       <div class="option-box" id="opt0"><div id="box0" class="option-plot"></div></div>
     </label>
-    
     <label class="option-label" for="radio1">
       <div class="radio-container"><input type="radio" id="radio1" name="answer" value="1"> 選択肢 2</div>
       <div class="option-box" id="opt1"><div id="box1" class="option-plot"></div></div>
     </label>
-    
     <label class="option-label" for="radio2">
       <div class="radio-container"><input type="radio" id="radio2" name="answer" value="2"> 選択肢 3</div>
       <div class="option-box" id="opt2"><div id="box2" class="option-plot"></div></div>
     </label>
-    
     <label class="option-label" for="radio3">
       <div class="radio-container"><input type="radio" id="radio3" name="answer" value="3"> 選択肢 4</div>
       <div class="option-box" id="opt3"><div id="box3" class="option-plot"></div></div>
@@ -166,7 +207,7 @@
   </div>
 
   <div id="buttonContainer">
-    <button id="checkButton" onclick="showAnswer()">✅ 答え合わせ</button> 
+    <button id="checkButton" onclick="showAnswer()">✅ 答え合わせ</button>
     <button id="nextButton" onclick="drawQuestion()" style="display:none;">🔁 次の問題へ</button>
   </div>
 
@@ -177,55 +218,70 @@
   <button id="restartButton" onclick="restartGame()" style="display:none;">🔁 もう一度挑戦</button>
 </div>
 
+<div id="cdnError">
+  ⚠️ グラフ描画ライブラリの読み込みに失敗しました。ネットワーク接続を確認して、ページを再読み込みしてください。
+</div>
 
 <script>
 // ===== 定数 =====
-const distWeights = { "正規分布": 0.2, "右に歪んだ分布": 0.3, "左に歪んだ分布": 0.3, "二峰性分布": 0.2 };
+const distWeights = { "正規分布": 0.24, "右に歪んだ分布": 0.36, "左に歪んだ分布": 0.36, "二峰性分布": 0.04 };
 const distTypes = Object.keys(distWeights);
-// レベル1:青、レベル2:緑、レベル3:赤
-const histColors = ["#1976D2", "#388E3C", "#D32F2F"]; 
-const X_RANGE = [0, 100]; 
+const histColors = ["#1976D2", "#388E3C", "#D32F2F"];
+const X_RANGE = [0, 100];
 const X_TICK_VALUES = [0, 20, 40, 60, 80, 100];
+const MAX_QUESTIONS = 30;
+const HIST_BINS = 15;
 
 // ===== ゲーム状態変数 =====
 let totalQuestions = 0, correctAnswers = 0, currentAnswer = 0;
-let gameOver = false, lives = 3, waitingNext = false; 
-let gameMode = 'hist-to-box'; 
-let shuffledDistTypes = []; 
+let gameOver = false, lives = 3, waitingNext = false;
+let shuffledDistTypes = [];
 
-// ===== グラフ・データ生成 (変更なし) =====
+// ===== 乱数・データ生成 =====
 function randn(mean = 0, std = 1) {
   let u = 1 - Math.random(), v = 1 - Math.random();
   return mean + std * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
+// 範囲内に収まる値が出るまで再サンプリング（境界での不自然な山積みを防ぐ）
+function sampleInRange(sampler, maxTries = 30) {
+  for (let i = 0; i < maxTries; i++) {
+    const v = sampler();
+    if (v >= X_RANGE[0] && v <= X_RANGE[1]) return v;
+  }
+  // どうしても収まらない場合のみクリップ
+  return Math.min(Math.max(sampler(), X_RANGE[0]), X_RANGE[1]);
+}
+
 function generateData(type, difficulty) {
   const n = 200;
   let shiftRange, scaleRange;
-  // 難易度に応じてデータの分散と平均のブレ幅を調整
   if (difficulty === 1) { shiftRange = 5; scaleRange = 5; }
   else if (difficulty === 2) { shiftRange = 10; scaleRange = 8; }
   else { shiftRange = 15; scaleRange = 10; }
-  
-  const baseShift = 50; 
+
+  const baseShift = 50;
   const shift = baseShift + (Math.random() - 0.5) * shiftRange;
   const scale = 5 + Math.random() * scaleRange;
-  
+
   let data = [];
-  if (type === "正規分布") data = Array.from({ length: n }, () => randn(shift, scale));
-  else if (type === "右に歪んだ分布") data = Array.from({ length: n }, () => Math.abs(randn(0, 1)) * scale * 4 + shift - 10);
-  else if (type === "左に歪んだ分布") data = Array.from({ length: n }, () => -Math.abs(randn(0, 1)) * scale * 4 + shift + 10);
-  else if (type === "二峰性分布") {
-    const a = Array.from({ length: n / 2 }, () => randn(shift - 15, scale * 0.8));
-    const b = Array.from({ length: n / 2 }, () => randn(shift + 15, scale * 0.8));
+  if (type === "正規分布") {
+    data = Array.from({ length: n }, () => sampleInRange(() => randn(shift, scale)));
+  } else if (type === "右に歪んだ分布") {
+    data = Array.from({ length: n }, () => sampleInRange(() => Math.abs(randn(0, 1)) * scale * 4 + shift - 10));
+  } else if (type === "左に歪んだ分布") {
+    data = Array.from({ length: n }, () => sampleInRange(() => -Math.abs(randn(0, 1)) * scale * 4 + shift + 10));
+  } else if (type === "二峰性分布") {
+    // 難易度が上がるほど山同士の間隔が狭くなり、見分けが難しくなる
+    const separation = 20 - difficulty * 2.5;
+    const a = Array.from({ length: n / 2 }, () => sampleInRange(() => randn(shift - separation, scale * 0.8)));
+    const b = Array.from({ length: n / 2 }, () => sampleInRange(() => randn(shift + separation, scale * 0.8)));
     data = a.concat(b);
   }
-
-  // データを0～100の範囲にクリップ
-  return data.map(val => Math.min(Math.max(val, X_RANGE[0]), X_RANGE[1]));
+  return data;
 }
 
-// ===== ゲームロジック (変更なし) =====
+// ===== ゲームロジック =====
 function getShuffledDistTypes(excludeType) {
   shuffledDistTypes = distTypes.filter(t => t !== excludeType);
   for (let i = shuffledDistTypes.length - 1; i > 0; i--) {
@@ -244,7 +300,6 @@ function chooseWeightedRandom() {
   return distTypes[0];
 }
 
-// 5問ごとにレベルアップ
 function getDifficulty() {
   const levelIndex = Math.floor(totalQuestions / 5);
   return Math.min(levelIndex + 1, 3);
@@ -259,22 +314,32 @@ function updateLifeDisplay() {
   document.getElementById("life").innerHTML = "❤️".repeat(lives) + "🤍".repeat(3 - lives);
 }
 
+function updateProgress() {
+  const qNum = Math.min(totalQuestions + 1, MAX_QUESTIONS);
+  document.getElementById("progress").innerText = `第 ${qNum} 問 / ${MAX_QUESTIONS} 問`;
+}
 
 function drawQuestion() {
+  if (window.__plotlyFailed || typeof Plotly === "undefined") {
+    document.getElementById("gameContainer").style.display = "none";
+    document.getElementById("cdnError").style.display = "block";
+    return;
+  }
+
   // --- 1. UIリセット ---
-  const radioButtons = document.querySelectorAll('input[name="answer"]');
-  radioButtons.forEach(radio => radio.checked = false); 
-  
+  document.querySelectorAll('input[name="answer"]').forEach(radio => radio.checked = false);
   document.querySelectorAll('.option-label').forEach(label => {
     label.classList.remove("correct", "wrong", "disabled");
   });
 
   document.getElementById("message").innerText = "";
   document.getElementById("gameover").style.display = "none";
+  document.getElementById("gameover").className = "";
   document.getElementById("nextButton").style.display = "none";
   document.getElementById("restartButton").style.display = "none";
-  document.getElementById("checkButton").disabled = false; 
+  document.getElementById("checkButton").disabled = false;
   waitingNext = false;
+  updateProgress();
 
   // --- 2. 問題設定 ---
   const difficulty = getDifficulty();
@@ -282,42 +347,30 @@ function drawQuestion() {
 
   const correctType = chooseWeightedRandom();
   currentAnswer = Math.floor(Math.random() * 4);
-  
-  const correctData = generateData(correctType, difficulty);
 
-  // 正解データの最小値と最大値を取得
+  const correctData = generateData(correctType, difficulty);
   const correctMin = Math.min(...correctData);
   const correctMax = Math.max(...correctData);
 
-  // 不正解の選択肢から、最大・最小値が一致する「ダミー」を選ぶ
   const wrongOptions = [0, 1, 2, 3].filter(i => i !== currentAnswer);
   const targetOptionIndex = wrongOptions[Math.floor(Math.random() * wrongOptions.length)];
 
-
-  const mainChartType = 'histogram'; 
-  const optionChartType = 'box'; 
-  
-  // 難易度に応じたヒストグラムの色を設定
-  const histColor = histColors[difficulty - 1]; 
+  const histColor = histColors[difficulty - 1];
 
   // --- 3. メイングラフ描画 ---
   const mainTrace = {
     x: correctData,
-    type: mainChartType,
+    type: 'histogram',
+    nbinsx: HIST_BINS,
     marker: { color: histColor }
   };
-
   const mainLayout = {
     title: `難易度レベル ${difficulty}`,
-    margin: { t: 40, l: 40, r: 20, b: 30 }, 
-    xaxis: { 
-        range: X_RANGE,
-        tickvals: X_TICK_VALUES // メイングラフは目盛を保持
-    }, 
+    margin: { t: 40, l: 40, r: 20, b: 30 },
+    xaxis: { range: X_RANGE, tickvals: X_TICK_VALUES },
     yaxis: { title: '度数' }
   };
-  
-  Plotly.newPlot("mainChart", [mainTrace], mainLayout, { staticPlot: true });
+  Plotly.react("mainChart", [mainTrace], mainLayout, { staticPlot: true });
 
   getShuffledDistTypes(correctType);
   let wrongTypeIndex = 0;
@@ -327,84 +380,58 @@ function drawQuestion() {
     let dataForOption, typeForOption;
 
     if (i === currentAnswer) {
-      // 正解の選択肢はそのまま
       dataForOption = correctData;
       typeForOption = correctType;
     } else {
-      // 不正解の選択肢のデータ生成
       typeForOption = shuffledDistTypes[wrongTypeIndex % shuffledDistTypes.length];
       wrongTypeIndex++;
       dataForOption = generateData(typeForOption, difficulty);
 
-      // ターゲットの選択肢は最小値と最大値の両方を強制的に一致させる
       if (i === targetOptionIndex) {
-          // データを正解の最小値と最大値の間にクリッピング
-          dataForOption = dataForOption.map(val => 
-              Math.min(Math.max(val, correctMin), correctMax)
-          );
-          // 最小値と最大値を明示的に追加し、ひげの端の一致を確実にする
-          dataForOption.push(correctMin);
-          dataForOption.push(correctMax);
+        dataForOption = dataForOption.map(val => Math.min(Math.max(val, correctMin), correctMax));
+        dataForOption.push(correctMin);
+        dataForOption.push(correctMax);
       }
     }
 
     const optionTrace = {
       x: dataForOption,
-      type: optionChartType,
+      type: 'box',
       marker: { color: 'gray' },
-      boxpoints: false 
+      boxpoints: false
     };
-    
-    // 選択肢のレイアウト
     const optionLayout = {
-      margin: { t: 10, b: 10, l: 10, r: 10 }, 
-      xaxis: { 
-        range: X_RANGE, 
-        // 目盛と軸を完全に非表示にする
-        visible: false,
-        showticklabels: false,
-        showline: false,
-        showgrid: false,
-        zeroline: false
-      }, 
-      yaxis: { showticklabels: false } 
+      margin: { t: 10, b: 10, l: 10, r: 10 },
+      xaxis: { range: X_RANGE, visible: false, showticklabels: false, showline: false, showgrid: false, zeroline: false },
+      yaxis: { showticklabels: false }
     };
-    
-    Plotly.newPlot(`box${i}`, [optionTrace], optionLayout, { staticPlot: true });
-    
+    Plotly.react(`box${i}`, [optionTrace], optionLayout, { staticPlot: true });
     document.getElementById(`box${i}`).dataset.distType = typeForOption;
   }
-  
+
   document.getElementById("mainChart").dataset.correctType = correctType;
   updateLifeDisplay();
 }
 
-// 「答え合わせ」ボタンが押された時の処理
 function showAnswer() {
   if (gameOver || waitingNext) return;
 
   const selectedRadio = document.querySelector('input[name="answer"]:checked');
-
-  // 1. 選択されているかチェック
   if (!selectedRadio) {
-      document.getElementById("message").innerHTML = "⚠️ 選択肢を一つ選んでください！";
-      document.getElementById("message").style.color = "orange";
-      return;
+    document.getElementById("message").innerHTML = "⚠️ 選択肢を一つ選んでください！";
+    document.getElementById("message").style.color = "orange";
+    return;
   }
-  
-  // 答え合わせ実行
-  waitingNext = true; 
-  document.getElementById("checkButton").disabled = true; 
-  
+
+  waitingNext = true;
+  document.getElementById("checkButton").disabled = true;
   document.querySelectorAll('.option-label').forEach(label => label.classList.add("disabled"));
 
   const msg = document.getElementById("message");
-  
-  // 次の問題へ行く前にtotalQuestionsを増やす
-  totalQuestions++; 
+  totalQuestions++;
   const userChoice = parseInt(selectedRadio.value);
+  const correctType = document.getElementById("mainChart").dataset.correctType;
 
-  // 2. 正解/不正解を判定し、スコアとライフを更新
   if (userChoice === currentAnswer) {
     correctAnswers++;
     msg.innerHTML = "🎯 正解！";
@@ -412,34 +439,41 @@ function showAnswer() {
     document.getElementById(`opt${userChoice}`).closest('.option-label').classList.add("correct");
   } else {
     lives--;
-    // 不正解時のメッセージ
-    msg.innerHTML = "❌ 間違い！もう一度、ヒストグラムと箱ひげ図の対応を確認してみましょう。";
+    msg.innerHTML = "❌ 間違い！";
     msg.style.color = "red";
-    // 正解の選択肢に枠線を表示
-    // ★ 修正点: userAnswer -> userChoice に変更 ★
     document.getElementById(`opt${userChoice}`).closest('.option-label').classList.add("wrong");
     document.getElementById(`opt${currentAnswer}`).closest('.option-label').classList.add("correct");
   }
 
   updateLifeDisplay();
-  const rate = totalQuestions > 0 ? ((correctAnswers / totalQuestions) * 100).toFixed(1) : 0.0;
+  const rate = totalQuestions > 0 ? ((correctAnswers / totalQuestions) * 100).toFixed(1) : "0.0";
   document.getElementById("scoreboard").innerText = `成績：${correctAnswers} / ${totalQuestions}問　（正答率：${rate}%）`;
-  
-  // 3. ゲームオーバー判定
+
+  const gameoverEl = document.getElementById("gameover");
+
+  // ゲームオーバー判定（ライフ切れ）
   if (lives <= 0) {
     gameOver = true;
     document.getElementById("restartButton").style.display = "inline-block";
-    document.getElementById("gameover").style.display = "block";
-    document.getElementById("gameover").innerText = `💀 ゲームオーバー！あなたの最終スコア：${correctAnswers}問正解 🎯`;
+    gameoverEl.style.display = "block";
+    gameoverEl.className = "lose";
+    gameoverEl.innerText = `💀 ゲームオーバー！あなたの最終スコア：${correctAnswers} / ${totalQuestions}問正解 🎯`;
     document.body.style.backgroundColor = "#ffcccc";
     return;
   }
 
-  // 4. 次のボタン類を表示
-  // ★ 修正点: 間違えてもゲームオーバーでなければ表示される ★
+  // 全問終了判定（30問到達）
+  if (totalQuestions >= MAX_QUESTIONS) {
+    gameOver = true;
+    document.getElementById("restartButton").style.display = "inline-block";
+    gameoverEl.style.display = "block";
+    gameoverEl.className = "clear";
+    gameoverEl.innerText = `🎉 全${MAX_QUESTIONS}問終了！最終スコア：${correctAnswers} / ${MAX_QUESTIONS}問正解（正答率：${rate}%）`;
+    return;
+  }
+
   document.getElementById("nextButton").style.display = "inline-block";
 }
-
 
 function restartGame() {
   totalQuestions = 0; correctAnswers = 0; lives = 3; gameOver = false;
@@ -449,7 +483,14 @@ function restartGame() {
   drawQuestion();
 }
 
-function startGame() {
+function beginGame() {
+  if (window.__plotlyFailed || typeof Plotly === "undefined") {
+    document.getElementById("startScreen").style.display = "none";
+    document.getElementById("cdnError").style.display = "block";
+    return;
+  }
+  document.getElementById("startScreen").style.display = "none";
+  document.getElementById("gameContainer").style.display = "block";
   restartGame();
 }
 </script>
