@@ -15,18 +15,18 @@
   body {
     font-family: "Segoe UI", sans-serif;
     text-align: center;
-    margin: 20px;
+    margin: 10px 12px;
     background-color: #f8f9fa;
     transition: background-color 0.6s ease;
   }
-  h1 { font-size: 1.6em; margin-bottom: 6px; }
-  p { font-size: 0.95em; color: #333; }
+  h1 { font-size: 1.25em; margin: 0 0 4px; }
+  p { font-size: 0.85em; color: #333; margin: 4px 0; }
 
   #progress {
-    font-size: 0.95em;
+    font-size: 0.85em;
     font-weight: bold;
     color: #555;
-    margin-top: 4px;
+    margin-top: 2px;
   }
 
   #gameContainer { display: none; }
@@ -59,31 +59,31 @@
   }
 
   #mainChart {
-    margin: 10px auto;
+    margin: 4px auto;
     width: 95%;
     max-width: 600px;
-    height: 250px;
+    height: 170px;
   }
 
   #options {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    gap: 6px;
     width: 95%;
     max-width: 650px;
-    margin: 10px auto;
+    margin: 6px auto;
   }
   @media (max-width: 480px) {
-    #options {
-      grid-template-columns: 1fr;
-      max-width: 95%;
-    }
+    #mainChart { height: 140px; }
+    .option-plot { height: 65px; }
+    .option-label { padding: 4px; }
+    .radio-container { font-size: 0.85em; margin-bottom: 1px; }
   }
 
   .option-label {
     display: block;
     border: 3px solid #ccc;
-    padding: 8px;
+    padding: 6px;
     border-radius: 10px;
     transition: 0.25s;
     background-color: white;
@@ -97,24 +97,25 @@
 
   .radio-container {
     text-align: left;
-    margin-bottom: 5px;
+    margin-bottom: 2px;
     font-weight: bold;
     color: #007BFF;
+    font-size: 0.9em;
   }
-  .option-plot { width: 100%; height: 100px; }
+  .option-plot { width: 100%; height: 80px; }
 
   .correct { border-color: #00c853 !important; background-color: #eaffea; }
   .wrong { border-color: #ff1744 !important; background-color: #ffeaea; }
   .disabled { pointer-events: none; opacity: 0.6; }
 
-  #message { font-size: 1.2em; margin-top: 10px; min-height: 1.5em; }
-  #scoreboard { margin-top: 10px; font-size: 1em; color: #333; }
-  #life { font-size: 1.4em; color: red; margin-top: 5px; }
+  #message { font-size: 1.05em; margin-top: 6px; min-height: 1.3em; }
+  #scoreboard { margin-top: 4px; font-size: 0.9em; color: #333; }
+  #life { font-size: 1.2em; color: red; margin-top: 2px; }
 
   #gameover {
     display: none;
-    margin-top: 20px;
-    font-size: 1.2em;
+    margin-top: 12px;
+    font-size: 1.1em;
     font-weight: bold;
   }
   #gameover.lose { color: #d32f2f; }
@@ -123,14 +124,14 @@
   #buttonContainer {
     display: flex;
     justify-content: center;
-    gap: 15px;
-    margin-top: 10px;
-    margin-bottom: 10px;
+    gap: 12px;
+    margin-top: 6px;
+    margin-bottom: 6px;
   }
 
   button {
-    font-size: 1em;
-    padding: 10px 20px;
+    font-size: 0.95em;
+    padding: 8px 16px;
     cursor: pointer;
     border: none;
     border-radius: 6px;
@@ -142,7 +143,7 @@
 
   #checkButton { background-color: #ff8c00; }
   #nextButton { background-color: #007BFF; }
-  #restartButton { background-color: #6c757d; margin-top: 10px; }
+  #restartButton { background-color: #6c757d; margin-top: 8px; }
 
   #cdnError {
     display: none;
@@ -180,8 +181,7 @@
 
 <div id="gameContainer">
   <h1>📊 ヒストグラム → 箱ひげ図クイズ</h1>
-  <p>ヒストグラムを見て、対応する箱ひげ図を選ぼう！<br>
-  3回間違えるとゲームオーバー。全30問終了で最終スコア発表！5問ごとにレベルアップ🔥</p>
+  <p>ヒストグラムを見て、対応する箱ひげ図を選ぼう！</p>
   <div id="progress"></div>
 
   <div id="life"></div>
@@ -366,7 +366,7 @@ function drawQuestion() {
   };
   const mainLayout = {
     title: `難易度レベル ${difficulty}`,
-    margin: { t: 40, l: 40, r: 20, b: 30 },
+    margin: { t: 30, l: 35, r: 15, b: 25 },
     xaxis: { range: X_RANGE, tickvals: X_TICK_VALUES },
     yaxis: { title: '度数' }
   };
@@ -439,7 +439,7 @@ function showAnswer() {
     document.getElementById(`opt${userChoice}`).closest('.option-label').classList.add("correct");
   } else {
     lives--;
-    msg.innerHTML = "❌ 間違い！";
+    msg.innerHTML = `❌ 間違い！（正解は選択肢 ${currentAnswer + 1} でした）`;
     msg.style.color = "red";
     document.getElementById(`opt${userChoice}`).closest('.option-label').classList.add("wrong");
     document.getElementById(`opt${currentAnswer}`).closest('.option-label').classList.add("correct");
